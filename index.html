@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        #canvas {
+            width: 100%;
+            height: 100%;
+            border: 2px solid pink;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            var canvas = document.getElementById('canvas');
+            var engine = new BABYLON.Engine(canvas, true);
+            var createScene = function () {
+                var scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color3.White();
+                var box = BABYLON.Mesh.CreateBox("Box", 4.0, scene);
+
+                var camera = new BABYLON.ArcRotateCamera("arcCam", BABYLON.Tools.ToRadians(45), BABYLON.Tools.ToRadians(45), 10.0, box.position, scene);
+                camera.attachControl(canvas,true);
+
+                var light = new BABYLON.PointLight("pointLight", new BABYLON.Vector3(5,10,0), scene);
+                light.diffuse = new BABYLON.Color3(1,1,1);
+
+                return scene;
+            }
+    
+            var scene = createScene();
+            engine.runRenderLoop(function () {
+                scene.render();
+            });
+        });
+    </script>
+</body>
+</html>
