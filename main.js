@@ -35,15 +35,15 @@ window.addEventListener('DOMContentLoaded', function () {
         console.log(x, y, z);
         sphere.position = new BABYLON.Vector3(x,y,z)
 
-        //const horizontal = BABYLON.MeshBuilder.CreateLines("lines", {points: [new BABYLON.Vector3(-50,0,0), new BABYLON.Vector3(50,0,0)]});
-        //const vertical = BABYLON.MeshBuilder.CreateLines("lines", {points: [new BABYLON.Vector3(0,0,-50), new BABYLON.Vector3(0,0,50)]});
-        //horizontal.color = new BABYLON.Color3(1,0,1);
-        //vertical.color = new BABYLON.Color3(1,0,1);
-
+        var moon_stationary = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
+        const mat2 = new BABYLON.StandardMaterial("myMaterial", scene);
+        mat2.diffuseColor = new BABYLON.Color3(1, 1, 1);
+        mat2.alpha = 1;
+        moon_stationary.material = mat2;
 
 var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 	
- 		//Input BABYLON.GUI
+ 		
                  const instPanel = new BABYLON.GUI.StackPanel();
                  instPanel.width = "420px";
                  instPanel.height = "200px";
@@ -52,6 +52,7 @@ var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI"
                  instPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
                  instPanel.isVisible = true;
                  advancedTexture.addControl(instPanel);
+
                  var instTxt = new BABYLON.GUI.TextBlock();
                  instTxt.height = "20px";
                  instTxt.paddingTop = "5px";
@@ -128,14 +129,32 @@ var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI"
                  playBtn.color = "white";
                  inputPanel.addControl(playBtn);
                  playBtn.onPointerClickObservable.add(function (value) {
-                     //resetSimulation();
-                     console.log(cityName)
+                     console.log(cityName);
+                     //Add data fetch call here
                  });
 
-                
-                 let pnts = [new BABYLON.Vector3(-50,0,0),new BABYLON.Vector3(0,50,0), new BABYLON.Vector3(50,0,0)] // // parameterize with data fetch array of moon co-ordinates
 
-                 let dashedlines = BABYLON.MeshBuilder.CreateDashedLines("dashedlines",{points: pnts});
+                 const displayPanel = new BABYLON.GUI.StackPanel();
+                 displayPanel.width = "420px";
+                 displayPanel.height = "200px";
+                 displayPanel.paddingTop = "20px";
+                 displayPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                 displayPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+                 displayPanel.isVisible = true;
+                 advancedTexture.addControl(displayPanel);
+
+                 var displayAnimationTime = new BABYLON.GUI.TextBlock();
+                 displayAnimationTime.height = "20px";
+                 displayAnimationTime.paddingTop = "5px";
+                 displayAnimationTime.color = "black";
+                 displayAnimationTime.text = "Moon location time display";
+                 displayAnimationTime.fontSize = 15;
+                 displayPanel.addControl(displayAnimationTime);
+
+                moon_stationary.position=new BABYLON.Vector3(25,25,0);
+
+                let pnts = [new BABYLON.Vector3(-50,0,0),new BABYLON.Vector3(0,50,0), new BABYLON.Vector3(50,0,0)] //parameterize with data fetch array of moon co-ordinates
+                let dashedlines = BABYLON.MeshBuilder.CreateDashedLines("dashedlines",{points: pnts});
 
                  const processCsv = () => {
                     var fileName = "uscities.csv";
@@ -161,9 +180,31 @@ var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI"
 
         return scene;
     }
+    
 
     var scene = createScene();
+// This would be removed once array of altitude and azimuth data is fetched. arr would have these fetched values
+    var arr=[];
+    for (let xx = -50; xx <= 0; xx=xx+0.2) {
+        let yy = xx+50;
+        arr.push(new BABYLON.Vector3(xx,yy,0))
+      } 
+      for (let xx = 0; xx <= 50; xx=xx+0.2) {
+        let yy = 50-xx;
+        arr.push(new BABYLON.Vector3(xx,yy,0))
+      }
+      
+    
+    var array_index=0;
+
     engine.runRenderLoop(function () {
+        var changingObj = scene.getMeshByName("sphere");
+        changingObj.position=arr[array_index];
+        
+        array_index++;
+        if(array_index==arr.length) {array_index=0;}
+        
+
         scene.render();
     });
 
