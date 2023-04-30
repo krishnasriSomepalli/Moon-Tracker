@@ -1,0 +1,23 @@
+{
+  "name": "moon-tracker",
+  "version": "1.0.0",
+  "description": "tracks moon position",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krishnasriSomepalli/Moon-Tracker.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/krishnasriSomepalli/Moon-Tracker/issues"
+  },
+  "homepage": "https://github.com/krishnasriSomepalli/Moon-Tracker#readme",
+  "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.3.29",
+    "suncalc": "^1.9.0"
+  }
+}
