@@ -1,59 +1,32 @@
 FRAMERATE = 10
 
-// Default to the datetime now
-// datetime = Date.now();
-datetimeGlobal = new Date("2023-04-30T22:15:00");
+// Default to the current date and time
+datetimeGlobal = new Date();
 
 // Default to Austin
 latitudeGlobal = 30.267153; 
 longitudeGlobal = -97.7430608;
-// navigator.geolocation.getCurrentPosition((position) => {
-//     latitudeGlobal = position.coords.latitude;
-//     longitudeGlobal = position.coords.longitude;
-// });
 
-let cityGlobal = 'Austin';
-let countryGlobal = 'United States';
-let postcodeGlobal = 78705;
+cityGlobal = 'Austin';
+countryGlobal = 'United States';
+postcodeGlobal = '78705';
 
 //We are using city, country, post/zipcode and time to get the position of the moon
 //geoapifyAPI is being used to get geo code (longitude and latitude) based on above 
 //information and reverse geo code (city, country, post/zip code) based on current location'slatitude and longitude.
-let citySearchGlobal  = 'Austin'
-let countrySearchGlobal = 'United states'
-let postcodeSearchGlobal = '78705'
-let timeAndDateSearchGlobal = new Date()
 let geoapifyAPIKey = '220654fd185f4701a933e938b683da70'
-let X =''
-let Y =''
-let Z =''
-async function geocodeAddress(city, country, postcode) {
 
-    const geocodingUrl = `https://api.geoapify.com/v1/geocode/search?city=${city}&country=${country}&postcode=${postcode}&apiKey=${geoapifyAPIKey}`;              
-    // call Geocoding API - https://www.geoapify.com/geocoding-api/
+// call Geocoding API - https://www.geoapify.com/geocoding-api/
+async function geocodeAddress(city, country, postcode) {
+    const geocodingUrl = `https://api.geoapify.com/v1/geocode/search?city=${city}&country=${country}&postcode=${postcode}&apiKey=${geoapifyAPIKey}`;
+
     const coordinates = await fetch(geocodingUrl).then(result => result.json())
     .then(featureCollection => {
-        return featureCollection.features[0].geometry.coordinates
+        return featureCollection.features[0].geometry.coordinates;
     });
     return coordinates  
 }
-async function getMoonParameters(timeAndDate,latitude,longitude){
-    const {azimuth, altitude, distance, parallacticAngle} = SunCalc.getMoonPosition(timeAndDate,latitude,longitude)
-    theta = (90-altitude)*Math.PI/180;
-    phi = (azimuth)*Math.PI/180;
-    p = 150;
-    y = p*Math.sin(phi)*Math.cos(theta);
-    x = p*Math.sin(phi)*Math.sin(theta);
-    z = p*Math.cos(phi); 
-    return [x,y,z]  
-}
 
-// async function getLocationVectors(){
-//         // Get geocode based on city, country and postcode
-//         const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
-//         // Get moon position parameters based on longitude and 
-//         const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)        
-// } 
 async function getMoonCanvas(){
     var canvas = document.getElementById('canvas');
     var engine = new BABYLON.Engine(canvas, true);
@@ -185,11 +158,8 @@ async function getMoonCanvas(){
         playBtn.color = "white";
         inputPanel.addControl(playBtn);
         playBtn.onPointerClickObservable.add(async function () {
-            // const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
-            // // Get moon position parameters based on longitude and 
-            // const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
-            // sphere.position = new BABYLON.Vector3(x,y,z)
-            
+            [longitudeGlobal, latitudeGlobal] = await geocodeAddress(cityGlobal, countryGlobal, postcodeGlobal)
+  
             scene.stopAllAnimations();
             moon.dispose();
             arcLine.dispose();
@@ -214,37 +184,40 @@ async function getMoonCanvas(){
 
 //Executes when user allows the location access request  
 async function getLocation_success(position) {
-    const latitude  = position.coords.latitude
-    const longtitude = position.coords.longitude
-    await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longtitude}&format=json&apiKey=${geoapifyAPIKey}`)
+    latitudeGlobal  = position.coords.latitude
+    longtitudeGlobal = position.coords.longitude
+
+    await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${latitudeGlobal}&lon=${longtitudeGlobal}&format=json&apiKey=${geoapifyAPIKey}`)
     .then(response => response.json())
     .then(result => {
-      countrySearchGlobal = result.results[0].country
-      citySearchGlobal = result.results[0].city
-      postcodeSearchGlobal = result.results[0].postcode 
-      })
+      countryGlobal = result.results[0].country
+      cityGlobal = result.results[0].city
+      postcodeGlobal = result.results[0].postcode 
+    })
     .catch(error => console.log('error', error));
-    getMoonCanvas()
+    getMoonCanvas();
   }
   
 //Executes when user blocks the location access request  
 async function getLocation_error(position) {
-    getMoonCanvas()
+    getMoonCanvas();
 }
 
 window.addEventListener('DOMContentLoaded', async function () {
     //By default, sets geocoordinates to user's current location
     //If user denies location access, default to Austin, United States, 78705
     if (navigator.geolocation) {
-        console.log('Inside navigation')
         await navigator.geolocation.getCurrentPosition(getLocation_success, getLocation_error);
     }
     else {
         var canvas = document.getElementById('canvas');
-        canvas.innerHTML = "Geolocation is not supported by this browser.";
+        canvas.innerHTML = "Geolocation is not supported by this browser";
     }
 });
 
+// Draws the moon
+// Animates moon position in a 24hr window
+// Animates sun position in the sky
 function draw(scene, skybox, datetime, lat, lng) {
     // moon
     let moon = new BABYLON.MeshBuilder.CreateSphere("moon", {diameter: 5});
