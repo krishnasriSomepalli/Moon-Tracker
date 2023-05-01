@@ -126,11 +126,75 @@ async function getMoonCanvas(){
         const sunKeyFrames = calculateSunKeyFrames(sunPositions);
         setupSkyAnimation(scene, skybox, sunKeyFrames)
 
-        // setup controls
+        // setup title and input controls
         let advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
         
         // title
-        setupTitle(advancedTexture)
+        let titlePanel = createPanel("420px", "200px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
+        advancedTexture.addControl(titlePanel);
+
+        let title = createTextBlock("Moon Tracker");
+        titlePanel.addControl(title);
+
+        // inputs
+        let inputPanel = createPanel("220px", "440px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
+        advancedTexture.addControl(inputPanel);
+
+        // city input
+        let city = createTextBlock("Enter City");
+        let cityInput = createInputText(citySearchGlobal);    
+        cityInput.onTextChangedObservable.add(e => {
+            citySearchGlobal = cityInput.text
+        });
+        inputPanel.addControl(city);
+        inputPanel.addControl(cityInput);
+
+        // country input
+        let country = createTextBlock("Enter Country");
+        let countryInput = createInputText(countrySearchGlobal);     
+        countryInput.onTextChangedObservable.add(e => {
+            countrySearchGlobal = countryInput.text   
+        });
+        inputPanel.addControl(country);	
+        inputPanel.addControl(countryInput);
+
+        // postcode input
+        let postcode = createTextBlock("Post/Zip Code");
+        let postcodeInput = createInputText(postcodeSearchGlobal);     
+        postcodeInput.onTextChangedObservable.add(e => {
+            postcodeSearchGlobal = postcodeInput.text
+        });
+        inputPanel.addControl(postcode);
+        inputPanel.addControl(postcodeInput);
+
+        // date input
+        let date = createTextBlock("Enter Date");
+        let dateInput = createInputText(getDateString(datetime));    
+        dateInput.onTextChangedObservable.add(e => {
+            let date = Date.parse(dateInput.text);
+            if (!isNaN(date)) {
+                datetime = new Date(dateInput.text);
+            }
+        });
+        inputPanel.addControl(date);
+        inputPanel.addControl(dateInput);
+
+        // time input
+        let time = createTextBlock("Enter Time");
+        let timeInput = createInputText(getTimeString(datetime));    
+        timeInput.onTextChangedObservable.add(e => {
+            let timeString = timeInput.text;
+            let timeParts = timeString.split(':');
+            let hours = parseInt(timeParts[0]);
+            let mins = parseInt(timeParts[1]);
+            if (!(isNaN(hours) && isNaN(mins) && hours>23 && hours<0 && mins>59 && mins<0)){
+                let date = new Date(dateInput.text) || Date.now();
+                date.setHours(hours, mins);
+                datetime = date;
+            }
+        });
+        inputPanel.addControl(time);
+        inputPanel.addControl(timeInput);
 
         var sphere = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
         const mat = new BABYLON.StandardMaterial("myMaterial", scene);
@@ -149,125 +213,6 @@ async function getMoonCanvas(){
         mat2.diffuseColor = new BABYLON.Color3(1, 1, 1);
         mat2.alpha = 1;
         moon_stationary.material = mat2;            
-			
-        //Input BABYLON.GUI
-        const inputPanel = new BABYLON.GUI.StackPanel();
-        inputPanel.width = "220px";
-        inputPanel.height = "440px";
-        inputPanel.paddingTop = "20px";
-        inputPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        inputPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        inputPanel.isVisible = true;
-        advancedTexture.addControl(inputPanel);
-			
-        // City Input Box
-        var city = new BABYLON.GUI.TextBlock();
-        city.height = "20px";
-        city.paddingTop = "5px";
-        city.color = "white";
-        city.text = "Enter City";
-        city.fontSize = 15;
-        inputPanel.addControl(city);
-
-        var cityInput = new BABYLON.GUI.InputText();
-        cityInput.width = 0.5;
-        cityInput.height = "30px";
-        cityInput.paddingTop = "0px";
-        cityInput.text = citySearchGlobal;
-        //cityName = citySearchGlobal;
-        cityInput.color = "white";
-        cityInput.background = "gray";
-              
-        cityInput.onTextChangedObservable.add(e => {
-            //var sInput = cityInput.text;
-            //console.log("^^^^^^")
-            //console.log(sInput)
-            // cityName = sInput;
-            citySearchGlobal = cityInput.text
-        });
-        inputPanel.addControl(cityInput);
-
-        // Country Input Box
-        var country = new BABYLON.GUI.TextBlock();
-        country.height = "20px";
-        country.paddingTop = "5px";
-        country.color = "white";
-        country.text = "Enter Country";
-        country.fontSize = 15;
-        inputPanel.addControl(country);
-			
-        var countryInput = new BABYLON.GUI.InputText();
-        countryInput.width = 0.5;
-        countryInput.height = "30px";
-        countryInput.paddingTop = "0px";
-        countryInput.text = countrySearchGlobal;
-        countryName = countrySearchGlobal;
-        countryInput.color = "white";
-        countryInput.background = "gray";
-              
-        countryInput.onTextChangedObservable.add(e => {
-            //  var sInput = countryInput.text;
-            //  console.log("^^^^^^")
-            //  console.log(sInput)
-            //  cityName = sInput;
-            countrySearchGlobal = countryInput.text   
-        });
-        inputPanel.addControl(countryInput);
-
-
-        // postcode Input Box
-        var postcode = new BABYLON.GUI.TextBlock();
-        postcode.height = "20px";
-        postcode.paddingTop = "5px";
-        postcode.color = "white";
-        postcode.text = "Post/Zip Code";
-        postcode.fontSize = 15;
-        inputPanel.addControl(postcode);
-               
-        var postcodeInput = new BABYLON.GUI.InputText();
-        postcodeInput.width = 0.5;
-        postcodeInput.height = "30px";
-        postcodeInput.paddingTop = "0px";
-        postcodeInput.text = postcodeSearchGlobal;
-        postcodeName = postcodeSearchGlobal;
-        postcodeInput.color = "white";
-        postcodeInput.background = "gray";
-                 
-        postcodeInput.onTextChangedObservable.add(e => {
-            // var sInput = postcodeInput.text;
-            // console.log("^^^^^^")
-            // console.log(sInput)
-            // postcodeName = sInput;
-            postcodeSearchGlobal = postcodeInput.text
-        });
-        inputPanel.addControl(postcodeInput);
-
-        // Time Input Box
-        var time = new BABYLON.GUI.TextBlock();
-        time.height = "20px";
-        time.paddingTop = "5px";
-        time.color = "white";
-        time.text = "Enter Time";
-        time.fontSize = 15;
-        inputPanel.addControl(time);
-			
-        var timeInput = new BABYLON.GUI.InputText();
-        timeInput.width = 0.5;
-        timeInput.height = "30px";
-        timeInput.paddingTop = "0px";
-        timeInput.text = timeAndDateSearchGlobal;
-        finalTime = timeAndDateSearchGlobal;
-        timeInput.color = "white";
-        timeInput.background = "gray";
-              
-        timeInput.onTextChangedObservable.add(e => {
-            //  var sInput = e.text;
-            //  console.log('##Time##')
-            //  console.log(sInput)
-            //  finalTime = sInput;
-                timeAndDateSearchGlobal = timeInput.text
-        });
-        inputPanel.addControl(timeInput);
 
         // Show Path Button
         var playBtn = BABYLON.GUI.Button.CreateSimpleButton("but", "Show path");
@@ -286,21 +231,10 @@ async function getMoonCanvas(){
         });
 
 
-        const displayPanel = new BABYLON.GUI.StackPanel();
-        displayPanel.width = "420px";
-        displayPanel.height = "200px";
-        displayPanel.paddingTop = "20px";
-        displayPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        displayPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        displayPanel.isVisible = true;
+        let displayPanel = createPanel("420px", "200px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
         advancedTexture.addControl(displayPanel);
 
-        var displayAnimationTime = new BABYLON.GUI.TextBlock();
-        displayAnimationTime.height = "20px";
-        displayAnimationTime.paddingTop = "5px";
-        displayAnimationTime.color = "black";
-        displayAnimationTime.text = "Moon location time display";
-        displayAnimationTime.fontSize = 15;
+        let displayAnimationTime = createTextBlock("Moon location time display");
         displayPanel.addControl(displayAnimationTime);
 
         moon_stationary.position=new BABYLON.Vector3(25,25,0);
@@ -435,23 +369,39 @@ function calculateMoonKeyFrames(positions) {
     return keyFrames;
 }
 
-function setupTitle(advancedTexture) {
+function createPanel(width, height, horizontalAlignment, verticalAlignment) {
     let panel = new BABYLON.GUI.StackPanel();
-    panel.width = "420px";
-    panel.height = "200px";
-    panel.paddingTop = "20px";
-    panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-    panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    panel.width = width;
+    panel.height = height;
+    panel.horizontalAlignment = horizontalAlignment;
+    panel.verticalAlignment = verticalAlignment;
+    panel.paddingTop = "20px";    
     panel.isVisible = true;
-    advancedTexture.addControl(panel);
 
-    let title = new BABYLON.GUI.TextBlock();
-    title.height = "20px";
-    title.paddingTop = "5px";
-    title.color = "white";
-    title.text = "Moon Tracker";
-    title.fontSize = 20;
-    panel.addControl(title);
+    return panel
+}
+
+function createTextBlock(text) {
+    let textBlock = new BABYLON.GUI.TextBlock();
+    textBlock.height = "20px";
+    textBlock.paddingTop = "5px";
+    textBlock.color = "white";
+    textBlock.fontSize = 15;
+    textBlock.text = text;
+    
+    return textBlock
+}
+
+function createInputText(text) {
+    let inputText = new BABYLON.GUI.InputText();
+    inputText.width = 0.5;
+    inputText.height = "30px";
+    inputText.paddingTop = "0px";
+    inputText.color = "white";
+    inputText.background = "gray";
+    inputText.text = text;
+
+    return inputText;
 }
 
 // accepts azimuth and altitude in radians
@@ -467,11 +417,11 @@ function getCartesian(azimuth, altitude) {
 }
 
 function toDegrees(radians) {
-	return radians * 180 / Math.PI;
+	return radians*180/Math.PI;
 }
 
 function toAzimuthInterval(degrees) {
-    if (degrees < 0) {
+    if (degrees<0) {
         degrees = 360+degrees;
     }
     
@@ -485,4 +435,19 @@ function toAzimuthInterval(degrees) {
 function toAltitudeInterval(degrees){
     let interval = toAzimuthInterval(degrees);
     return -0.5+interval;
+}
+
+function getDateString(datetime) {
+    const date = datetime.getUTCDate();
+    const month = datetime.getUTCMonth();
+    const year = datetime.getUTCFullYear();
+
+    return `${year}-${month}-${date}`;
+}
+
+function getTimeString(datetime) {
+    const hours = datetime.getUTCHours();
+    const minutes = datetime.getUTCMinutes();
+
+    return `${hours}:${minutes}`;
 }
