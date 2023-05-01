@@ -1,3 +1,5 @@
+FRAMERATE = 10
+
 // Default to the datetime now
 // datetime = Date.now();
 datetime = new Date("2023-04-30T22:15:00");
@@ -9,8 +11,6 @@ lng = -97.7430608;
 //     lat = position.coords.latitude;
 //     lng = position.coords.longitude;
 // });
-
-frameRate = 10
 
 //We are using city, country, post/zipcode and time to get the position of the moon
 //geoapifyAPI is being used to get geo code (longitude and latitude) based on above 
@@ -28,19 +28,19 @@ async function geocodeAddress(city, country, postcode) {
     const geocodingUrl = `https://api.geoapify.com/v1/geocode/search?city=${city}&country=${country}&postcode=${postcode}&apiKey=${geoapifyAPIKey}`;              
     // call Geocoding API - https://www.geoapify.com/geocoding-api/
     const coordinates = await fetch(geocodingUrl).then(result => result.json())
-      .then(featureCollection => {
+    .then(featureCollection => {
         return featureCollection.features[0].geometry.coordinates
-      });
+    });
     return coordinates  
 }
 async function getMoonParameters(timeAndDate,latitude,longitude){
     const {azimuth, altitude, distance, parallacticAngle} = SunCalc.getMoonPosition(timeAndDate,latitude,longitude)
-        theta = (90-altitude)*Math.PI/180;
-        phi = (azimuth)*Math.PI/180;
-        p = 150;
-        y = p*Math.sin(phi)*Math.cos(theta);
-        x = p*Math.sin(phi)*Math.sin(theta);
-        z = p*Math.cos(phi); 
+    theta = (90-altitude)*Math.PI/180;
+    phi = (azimuth)*Math.PI/180;
+    p = 150;
+    y = p*Math.sin(phi)*Math.cos(theta);
+    x = p*Math.sin(phi)*Math.sin(theta);
+    z = p*Math.cos(phi); 
     return [x,y,z]  
 }
 
@@ -55,32 +55,40 @@ async function getMoonCanvas(){
     var engine = new BABYLON.Engine(canvas, true);
     var createScene = async function () {
         var scene = new BABYLON.Scene(engine);
+
+        // camera
         var camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0,35,0), scene);
         camera.attachControl(canvas, true);
         camera.minZ = 0.45;
         
+        // light
         const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
         light.specular = new BABYLON.Color3(0.2,0.2,0.2);
         light.intensity = 0.8;
 
-        //skymaterial
+        // skymaterial
         var skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
         skyMaterial.backFaceCulling = false;
         
-        // skybox
+        // skybox - sky
         var skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
         skybox.material = skyMaterial;
         skybox.material.inclination = 0.25;
         skybox.material.azimuth = 0;
 
-        // let skybox_stars = BABYLON.MeshBuilder.CreateBox("skyBoxStars", {size:700.0}, scene);
-        // var starsMaterial = new BABYLON.StandardMaterial("stars", scene);
-        // skybox_stars.backFaceCulling = false;
-        // starsMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/stars", scene);
+        // stars
+        // let starsMaterial = new BABYLON.StandardMaterial("stars", scene);
+        // starsMaterial.backFaceCulling = false;
+        // starsMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/stars", scene); // update to black dots on white bg
         // starsMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
         // starsMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
         // starsMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
-        // skybox_stars.material = starsMaterial;
+        // starsMaterial.alpha = 0.1;
+        // starsMaterial.alphaMode = BABYLON.Engine.ALPHA_MAXIMIZED;
+
+        // skybox - stars
+        // let starsbox = BABYLON.Mesh.CreateBox("skyBox", 800.0, scene);
+        // starsbox.material = starsMaterial;
 
         // ground
         const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", "textures/heightMap3.png", {width:1000, height:1000, subdivisions:100, maxHeight: 50});
@@ -118,6 +126,12 @@ async function getMoonCanvas(){
         const sunKeyFrames = calculateSunKeyFrames(sunPositions);
         setupSkyAnimation(scene, skybox, sunKeyFrames)
 
+        // setup controls
+        let advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        
+        // title
+        setupTitle(advancedTexture)
+
         var sphere = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
         const mat = new BABYLON.StandardMaterial("myMaterial", scene);
         mat.diffuseColor = new BABYLON.Color3(1, 1, 0);
@@ -129,221 +143,174 @@ async function getMoonCanvas(){
         // Get moon position parameters based on longitude and 
         const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
         sphere.position = new BABYLON.Vector3(x,y,z)
-       
 
         var moon_stationary = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
         const mat2 = new BABYLON.StandardMaterial("myMaterial", scene);
         mat2.diffuseColor = new BABYLON.Color3(1, 1, 1);
         mat2.alpha = 1;
-        moon_stationary.material = mat2;
-        var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");	
-                 const instPanel = new BABYLON.GUI.StackPanel();
-                 instPanel.width = "420px";
-                 instPanel.height = "200px";
-                 instPanel.paddingTop = "20px";
-                 instPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-                 instPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-                 instPanel.isVisible = true;
-                 advancedTexture.addControl(instPanel);
+        moon_stationary.material = mat2;            
+			
+        //Input BABYLON.GUI
+        const inputPanel = new BABYLON.GUI.StackPanel();
+        inputPanel.width = "220px";
+        inputPanel.height = "440px";
+        inputPanel.paddingTop = "20px";
+        inputPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        inputPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        inputPanel.isVisible = true;
+        advancedTexture.addControl(inputPanel);
+			
+        // City Input Box
+        var city = new BABYLON.GUI.TextBlock();
+        city.height = "20px";
+        city.paddingTop = "5px";
+        city.color = "white";
+        city.text = "Enter City";
+        city.fontSize = 15;
+        inputPanel.addControl(city);
 
-                 var instTxt = new BABYLON.GUI.TextBlock();
-                 instTxt.height = "20px";
-                 instTxt.paddingTop = "5px";
-                 instTxt.color = "white";
-                 instTxt.text = "Moon Tracker";
-                 instTxt.fontSize = 20;
-                 instPanel.addControl(instTxt);
+        var cityInput = new BABYLON.GUI.InputText();
+        cityInput.width = 0.5;
+        cityInput.height = "30px";
+        cityInput.paddingTop = "0px";
+        cityInput.text = citySearchGlobal;
+        //cityName = citySearchGlobal;
+        cityInput.color = "white";
+        cityInput.background = "gray";
               
+        cityInput.onTextChangedObservable.add(e => {
+            //var sInput = cityInput.text;
+            //console.log("^^^^^^")
+            //console.log(sInput)
+            // cityName = sInput;
+            citySearchGlobal = cityInput.text
+        });
+        inputPanel.addControl(cityInput);
+
+        // Country Input Box
+        var country = new BABYLON.GUI.TextBlock();
+        country.height = "20px";
+        country.paddingTop = "5px";
+        country.color = "white";
+        country.text = "Enter Country";
+        country.fontSize = 15;
+        inputPanel.addControl(country);
 			
- 				//Input BABYLON.GUI
-			
-                 const inputPanel = new BABYLON.GUI.StackPanel();
-                 inputPanel.width = "220px";
-                 inputPanel.height = "440px";
-                 inputPanel.paddingTop = "20px";
-                 inputPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-                 inputPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-                 inputPanel.isVisible = true;
-                 advancedTexture.addControl(inputPanel);
-			
-                 // City Input Box
-                 var city = new BABYLON.GUI.TextBlock();
-                 city.height = "20px";
-                 city.paddingTop = "5px";
-                 city.color = "white";
-                 city.text = "Enter City";
-                 city.fontSize = 15;
-                 inputPanel.addControl(city);
-			
-                 var cityInput = new BABYLON.GUI.InputText();
-                 cityInput.width = 0.5;
-                 cityInput.height = "30px";
-                 cityInput.paddingTop = "0px";
-                 cityInput.text = citySearchGlobal;
-                 //cityName = citySearchGlobal;
-                 cityInput.color = "white";
-                 cityInput.background = "gray";
+        var countryInput = new BABYLON.GUI.InputText();
+        countryInput.width = 0.5;
+        countryInput.height = "30px";
+        countryInput.paddingTop = "0px";
+        countryInput.text = countrySearchGlobal;
+        countryName = countrySearchGlobal;
+        countryInput.color = "white";
+        countryInput.background = "gray";
               
-                 cityInput.onTextChangedObservable.add(e => {
-                     //var sInput = cityInput.text;
-                     //console.log("^^^^^^")
-                     //console.log(sInput)
-                    // cityName = sInput;
-                    citySearchGlobal = cityInput.text
-                  
-                 });
-                 inputPanel.addControl(cityInput);
-
-                // Country Input Box
-                 var country = new BABYLON.GUI.TextBlock();
-                 country.height = "20px";
-                 country.paddingTop = "5px";
-                 country.color = "white";
-                 country.text = "Enter Country";
-                 country.fontSize = 15;
-                 inputPanel.addControl(country);
-			
-                 var countryInput = new BABYLON.GUI.InputText();
-                 countryInput.width = 0.5;
-                 countryInput.height = "30px";
-                 countryInput.paddingTop = "0px";
-                 countryInput.text = countrySearchGlobal;
-                 countryName = countrySearchGlobal;
-                 countryInput.color = "white";
-                 countryInput.background = "gray";
-              
-                 countryInput.onTextChangedObservable.add(e => {
-                    //  var sInput = countryInput.text;
-                    //  console.log("^^^^^^")
-                    //  console.log(sInput)
-                    //  cityName = sInput;
-                    countrySearchGlobal = countryInput.text
-                  
-                 });
-                 inputPanel.addControl(countryInput);
+        countryInput.onTextChangedObservable.add(e => {
+            //  var sInput = countryInput.text;
+            //  console.log("^^^^^^")
+            //  console.log(sInput)
+            //  cityName = sInput;
+            countrySearchGlobal = countryInput.text   
+        });
+        inputPanel.addControl(countryInput);
 
 
-                    // postcode Input Box
-                    var postcode = new BABYLON.GUI.TextBlock();
-                    postcode.height = "20px";
-                    postcode.paddingTop = "5px";
-                    postcode.color = "white";
-                    postcode.text = "Post/Zip Code";
-                    postcode.fontSize = 15;
-                    inputPanel.addControl(postcode);
+        // postcode Input Box
+        var postcode = new BABYLON.GUI.TextBlock();
+        postcode.height = "20px";
+        postcode.paddingTop = "5px";
+        postcode.color = "white";
+        postcode.text = "Post/Zip Code";
+        postcode.fontSize = 15;
+        inputPanel.addControl(postcode);
                
-                    var postcodeInput = new BABYLON.GUI.InputText();
-                    postcodeInput.width = 0.5;
-                    postcodeInput.height = "30px";
-                    postcodeInput.paddingTop = "0px";
-                    postcodeInput.text = postcodeSearchGlobal;
-                    postcodeName = postcodeSearchGlobal;
-                    postcodeInput.color = "white";
-                    postcodeInput.background = "gray";
+        var postcodeInput = new BABYLON.GUI.InputText();
+        postcodeInput.width = 0.5;
+        postcodeInput.height = "30px";
+        postcodeInput.paddingTop = "0px";
+        postcodeInput.text = postcodeSearchGlobal;
+        postcodeName = postcodeSearchGlobal;
+        postcodeInput.color = "white";
+        postcodeInput.background = "gray";
                  
-                    postcodeInput.onTextChangedObservable.add(e => {
-                        // var sInput = postcodeInput.text;
-                        // console.log("^^^^^^")
-                        // console.log(sInput)
-                        // postcodeName = sInput;
-                        postcodeSearchGlobal = postcodeInput.text
-                     
-                    });
-                    inputPanel.addControl(postcodeInput);
+        postcodeInput.onTextChangedObservable.add(e => {
+            // var sInput = postcodeInput.text;
+            // console.log("^^^^^^")
+            // console.log(sInput)
+            // postcodeName = sInput;
+            postcodeSearchGlobal = postcodeInput.text
+        });
+        inputPanel.addControl(postcodeInput);
 
-			    // Time Input Box
- 				var time = new BABYLON.GUI.TextBlock();
-                 time.height = "20px";
-                 time.paddingTop = "5px";
-                 time.color = "white";
-                 time.text = "Enter Time";
-                 time.fontSize = 15;
-                 inputPanel.addControl(time);
+        // Time Input Box
+        var time = new BABYLON.GUI.TextBlock();
+        time.height = "20px";
+        time.paddingTop = "5px";
+        time.color = "white";
+        time.text = "Enter Time";
+        time.fontSize = 15;
+        inputPanel.addControl(time);
 			
-                 var timeInput = new BABYLON.GUI.InputText();
-                 timeInput.width = 0.5;
-                 timeInput.height = "30px";
-                 timeInput.paddingTop = "0px";
-                 timeInput.text = timeAndDateSearchGlobal;
-                 finalTime = timeAndDateSearchGlobal;
-                 timeInput.color = "white";
-                 timeInput.background = "gray";
+        var timeInput = new BABYLON.GUI.InputText();
+        timeInput.width = 0.5;
+        timeInput.height = "30px";
+        timeInput.paddingTop = "0px";
+        timeInput.text = timeAndDateSearchGlobal;
+        finalTime = timeAndDateSearchGlobal;
+        timeInput.color = "white";
+        timeInput.background = "gray";
               
-                 timeInput.onTextChangedObservable.add(e => {
-                    //  var sInput = e.text;
-                    //  console.log('##Time##')
-                    //  console.log(sInput)
-                    //  finalTime = sInput;
-                     timeAndDateSearchGlobal = timeInput.text
-                  
-                 });
-                 inputPanel.addControl(timeInput);
+        timeInput.onTextChangedObservable.add(e => {
+            //  var sInput = e.text;
+            //  console.log('##Time##')
+            //  console.log(sInput)
+            //  finalTime = sInput;
+                timeAndDateSearchGlobal = timeInput.text
+        });
+        inputPanel.addControl(timeInput);
 
-                 // Show Path Button
- 				var playBtn = BABYLON.GUI.Button.CreateSimpleButton("but", "Show path");
-                 playBtn.width = 0.5;
-                 playBtn.height = "50px";
-                 playBtn.paddingTop = "20px";
-                 playBtn.color = "white";
-                 inputPanel.addControl(playBtn);
-                 playBtn.onPointerClickObservable.add(async function (value) {
-                    console.log("cityName")
-                    console.log(value);
-                    const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
-                    // Get moon position parameters based on longitude and 
-                    const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
-                    sphere.position = new BABYLON.Vector3(x,y,z)
-                 });
+        // Show Path Button
+        var playBtn = BABYLON.GUI.Button.CreateSimpleButton("but", "Show path");
+        playBtn.width = 0.5;
+        playBtn.height = "50px";
+        playBtn.paddingTop = "20px";
+        playBtn.color = "white";
+        inputPanel.addControl(playBtn);
+        playBtn.onPointerClickObservable.add(async function (value) {
+            console.log("cityName")
+            console.log(value);
+            const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
+            // Get moon position parameters based on longitude and 
+            const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
+            sphere.position = new BABYLON.Vector3(x,y,z)
+        });
 
 
-                 const displayPanel = new BABYLON.GUI.StackPanel();
-                 displayPanel.width = "420px";
-                 displayPanel.height = "200px";
-                 displayPanel.paddingTop = "20px";
-                 displayPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-                 displayPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-                 displayPanel.isVisible = true;
-                 advancedTexture.addControl(displayPanel);
+        const displayPanel = new BABYLON.GUI.StackPanel();
+        displayPanel.width = "420px";
+        displayPanel.height = "200px";
+        displayPanel.paddingTop = "20px";
+        displayPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        displayPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        displayPanel.isVisible = true;
+        advancedTexture.addControl(displayPanel);
 
-                 var displayAnimationTime = new BABYLON.GUI.TextBlock();
-                 displayAnimationTime.height = "20px";
-                 displayAnimationTime.paddingTop = "5px";
-                 displayAnimationTime.color = "black";
-                 displayAnimationTime.text = "Moon location time display";
-                 displayAnimationTime.fontSize = 15;
-                 displayPanel.addControl(displayAnimationTime);
+        var displayAnimationTime = new BABYLON.GUI.TextBlock();
+        displayAnimationTime.height = "20px";
+        displayAnimationTime.paddingTop = "5px";
+        displayAnimationTime.color = "black";
+        displayAnimationTime.text = "Moon location time display";
+        displayAnimationTime.fontSize = 15;
+        displayPanel.addControl(displayAnimationTime);
 
-                moon_stationary.position=new BABYLON.Vector3(25,25,0);
-
-                let pnts = [new BABYLON.Vector3(-50,0,0),new BABYLON.Vector3(0,50,0), new BABYLON.Vector3(50,0,0)] //parameterize with data fetch array of moon co-ordinates
-                let dashedlines = BABYLON.MeshBuilder.CreateDashedLines("dashedlines",{points: pnts});
+        moon_stationary.position=new BABYLON.Vector3(25,25,0);
                 
         return scene;
     }
     
     var scene = await createScene();
-// This would be removed once array of altitude and azimuth data is fetched. arr would have these fetched values
-    var arr=[];
-    for (let xx = -50; xx <= 0; xx=xx+0.2) {
-        let yy = xx+50;
-        arr.push(new BABYLON.Vector3(xx,yy,0))
-      } 
-      for (let xx = 0; xx <= 50; xx=xx+0.2) {
-        let yy = 50-xx;
-        arr.push(new BABYLON.Vector3(xx,yy,0))
-      }
-      
-    
-    var array_index=0;
 
     engine.runRenderLoop(function () {
-        var changingObj = scene.getMeshByName("sphere");
-        changingObj.position=arr[array_index];
-        
-        array_index++;
-        if(array_index==arr.length) {array_index=0;}
-        
-
         scene.render();
     });
 }    
@@ -382,9 +349,9 @@ else {
 });
 
 function setupMoonAnimation(scene, moon, moonKeyFrames) {
-    let xSlide = new BABYLON.Animation("xSlide", "position.x", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
-    let ySlide = new BABYLON.Animation("ySlide", "position.y", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
-    let zSlide = new BABYLON.Animation("zSlide", "position.z", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let xSlide = new BABYLON.Animation("xSlide", "position.x", FRAMERATE, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let ySlide = new BABYLON.Animation("ySlide", "position.y", FRAMERATE, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let zSlide = new BABYLON.Animation("zSlide", "position.z", FRAMERATE, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
 
     xSlide.setKeys(moonKeyFrames.x);
     ySlide.setKeys(moonKeyFrames.y);
@@ -394,18 +361,18 @@ function setupMoonAnimation(scene, moon, moonKeyFrames) {
     moon.animations.push(ySlide);
     moon.animations.push(zSlide);
 
-    scene.beginAnimation(moon, 0, 24*frameRate, true, 1);
+    scene.beginAnimation(moon, 0, 24*FRAMERATE, true, 1);
 }
 
 function setupSkyAnimation(scene, skybox, sunKeyFrames) {
-    let sunAz = new BABYLON.Animation("sunAz", "material.azimuth", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
-    let sunAl = new BABYLON.Animation("sunAl", "material.inclination", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let sunAz = new BABYLON.Animation("sunAz", "material.azimuth", FRAMERATE, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let sunAl = new BABYLON.Animation("sunAl", "material.inclination", FRAMERATE, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
 
     sunAz.setKeys(sunKeyFrames.az);
     sunAl.setKeys(sunKeyFrames.al);
 
-    scene.beginDirectAnimation(skybox, [sunAz], 0, 24*frameRate, true, 1);
-    scene.beginDirectAnimation(skybox, [sunAl], 0, 24*frameRate, true, 1);
+    scene.beginDirectAnimation(skybox, [sunAz], 0, 24*FRAMERATE, true, 1);
+    scene.beginDirectAnimation(skybox, [sunAl], 0, 24*FRAMERATE, true, 1);
 }
 
 function calculateSunPositionsInADay(datetime, lat, lng) {
@@ -422,7 +389,7 @@ function calculateSunPositionsInADay(datetime, lat, lng) {
     }
     positions.az.push(positions.az[0]);
     positions.al.push(positions.al[0]);
-    console.log(positions);
+
     return positions;
 }
 
@@ -430,11 +397,12 @@ function calculateSunKeyFrames(positions) {
     let keyFrames = {az:[],al:[]};
     
     for(let i=0; i<24; i++) {
-        keyFrames.az.push({frame:i*frameRate, value:positions.az[i]});
-        keyFrames.al.push({frame:i*frameRate, value:positions.al[i]});
+        keyFrames.az.push({frame:i*FRAMERATE, value:positions.az[i]});
+        keyFrames.al.push({frame:i*FRAMERATE, value:positions.al[i]});
     }
-    keyFrames.az.push({frame:24*frameRate, value:positions.az[0]});
-    keyFrames.al.push({frame:24*frameRate, value:positions.al[0]});
+    keyFrames.az.push({frame:24*FRAMERATE, value:positions.az[0]});
+    keyFrames.al.push({frame:24*FRAMERATE, value:positions.al[0]});
+
     return keyFrames;
 }
 
@@ -448,6 +416,7 @@ function calculateMoonPositionsInADay(datetime, lat, lng) {
         let position_coords = getCartesian(position.azimuth, position.altitude);
         positions.push(new BABYLON.Vector3(position_coords.x, position_coords.y, position_coords.z));
     }
+
     return positions;
 }
 
@@ -455,24 +424,44 @@ function calculateMoonKeyFrames(positions) {
     let keyFrames = {x:[],y:[],z:[]};
     
     for(let i=0; i<24; i++) {
-        keyFrames.x.push({frame:i*frameRate, value:positions[i].x});
-        keyFrames.y.push({frame:i*frameRate, value:positions[i].y});
-        keyFrames.z.push({frame:i*frameRate, value:positions[i].z});
+        keyFrames.x.push({frame:i*FRAMERATE, value:positions[i].x});
+        keyFrames.y.push({frame:i*FRAMERATE, value:positions[i].y});
+        keyFrames.z.push({frame:i*FRAMERATE, value:positions[i].z});
     }
-    keyFrames.x.push({frame:24*frameRate, value:positions[0].x});
-    keyFrames.y.push({frame:24*frameRate, value:positions[0].y});
-    keyFrames.z.push({frame:24*frameRate, value:positions[0].z});
+    keyFrames.x.push({frame:24*FRAMERATE, value:positions[0].x});
+    keyFrames.y.push({frame:24*FRAMERATE, value:positions[0].y});
+    keyFrames.z.push({frame:24*FRAMERATE, value:positions[0].z});
+
     return keyFrames;
+}
+
+function setupTitle(advancedTexture) {
+    let panel = new BABYLON.GUI.StackPanel();
+    panel.width = "420px";
+    panel.height = "200px";
+    panel.paddingTop = "20px";
+    panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    panel.isVisible = true;
+    advancedTexture.addControl(panel);
+
+    let title = new BABYLON.GUI.TextBlock();
+    title.height = "20px";
+    title.paddingTop = "5px";
+    title.color = "white";
+    title.text = "Moon Tracker";
+    title.fontSize = 20;
+    panel.addControl(title);
 }
 
 // accepts azimuth and altitude in radians
 // returns corresponding Cartesian coordinates
 function getCartesian(azimuth, altitude) {
-    p = 100;
+    const p = 100;
 
-    x = p*Math.cos(altitude)*Math.sin(azimuth);
-    y = p*Math.sin(altitude);
-    z = p*Math.cos(altitude)*Math.cos(azimuth);
+    let x = p*Math.cos(altitude)*Math.sin(azimuth);
+    let y = p*Math.sin(altitude);
+    let z = p*Math.cos(altitude)*Math.cos(azimuth);
 
     return {x, y, z};
 }
@@ -485,9 +474,11 @@ function toAzimuthInterval(degrees) {
     if (degrees < 0) {
         degrees = 360+degrees;
     }
+    
     if (degrees>360) {
         degrees = degrees%360;
     }
+
     return degrees/360
 }
 
