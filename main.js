@@ -172,19 +172,19 @@ async function getMoonCanvas(){
             camera.lockedTarget = moon;
         });
 
-        const NS = [
-            new BABYLON.Vector3(0,200,3000),
-            new BABYLON.Vector3(0,200,-3000)
-        ]
-        const NSAxis = BABYLON.MeshBuilder.CreateDashedLines("lines", {points: NS});
-        NSAxis.color = new BABYLON.Color3(0,0,0);
+        // const NS = [
+        //     new BABYLON.Vector3(0,200,3000),
+        //     new BABYLON.Vector3(0,200,-3000)
+        // ]
+        // const NSAxis = BABYLON.MeshBuilder.CreateDashedLines("lines", {points: NS});
+        // NSAxis.color = new BABYLON.Color3(0,0,0);
 
-        const EW = [
-            new BABYLON.Vector3(-3000,200,0),
-            new BABYLON.Vector3(3000,200,0)
-        ]
-        const EWAxis = BABYLON.MeshBuilder.CreateDashedLines("lines", {points: EW});
-        EWAxis.color = new BABYLON.Color3(0,0,0);
+        // const EW = [
+        //     new BABYLON.Vector3(-3000,200,0),
+        //     new BABYLON.Vector3(3000,200,0)
+        // ]
+        // const EWAxis = BABYLON.MeshBuilder.CreateDashedLines("lines", {points: EW});
+        // EWAxis.color = new BABYLON.Color3(0,0,0);
                 
         return scene;
     }
