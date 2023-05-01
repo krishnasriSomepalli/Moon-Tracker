@@ -7,15 +7,41 @@ window.addEventListener('DOMContentLoaded', function () {
         camera.attachControl(canvas, true);
         camera.minZ = 0.45;
         
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
+        light.specular = new BABYLON.Color3(0.2,0.2,0.2);
+        light.intensity = 0.8;
+
+        // Default to the datetime now
+        // datetime = Date.now();
+        datetime = new Date("2023-04-30T22:15:00");
+
+        // Default to Austin
+        lat = 30.267153; 
+        lng = -97.7430608;
+        // navigator.geolocation.getCurrentPosition((position) => {
+        //     lat = position.coords.latitude;
+        //     lng = position.coords.longitude;
+        // });
 
         //skymaterial
-        var skyboxMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
-        skyboxMaterial.backFaceCulling = false;
-
+        var skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
+        skyMaterial.backFaceCulling = false;
+        
         // skybox
         var skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
-        skybox.material = skyboxMaterial;
+        skybox.material = skyMaterial;
+
+        // var starsMaterial = new BABYLON.StandardMaterial("stars", scene);
+        // starsMaterial.backFaceCulling = false;
+        // starsMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/stars", scene); // update to black dots on white bg
+        // starsMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+        // starsMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        // starsMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+        // starsMaterial.alpha = 0.1;
+        // starsMaterial.alphaMode = BABYLON.Engine.ALPHA_MAXIMIZED;
+
+        // var starsbox = BABYLON.Mesh.CreateBox("skyBox", 800.0, scene);
+        // starsbox.material = starsMaterial;
 
         // ground
         const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", "textures/heightMap3.png", {width:1000, height:1000, subdivisions:100, maxHeight: 50});
@@ -30,61 +56,50 @@ window.addEventListener('DOMContentLoaded', function () {
         let sphere = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
         let moon_mat = new BABYLON.StandardMaterial("mat0", scene);
         moon_mat.diffuseTexture = new BABYLON.Texture("./textures/moon.png", scene);
+        moon_mat.emissiveColor = new BABYLON.Color3(0.8,0.8,0.8);
         sphere.material = moon_mat;
-
-        // Default to the datetime now
-        // datetime = Date.now();
-        datetime = new Date("2023-04-30T22:15:00");
-
-        // Default to Austin
-        lat = 30.267153; 
-        lng = -97.7430608;
-        // navigator.geolocation.getCurrentPosition((position) => {
-        //     lat = position.coords.latitude;
-        //     lng = position.coords.longitude;
-        // });
 
         // moon position
         let moonPos = SunCalc.getMoonPosition(datetime, lat, lng);
         let moon_now_coords = getCartesian(moonPos.azimuth, moonPos.altitude);
         sphere.position = new BABYLON.Vector3(moon_now_coords.x,moon_now_coords.y,moon_now_coords.z);
 
-        let moonTimes = SunCalc.getMoonTimes(datetime, lat, lng);
-        let moonrise = SunCalc.getMoonPosition(moonTimes.rise, lat, lng);
-        let moonset = SunCalc.getMoonPosition(moonTimes.set, lat, lng);
+        // let moonTimes = SunCalc.getMoonTimes(datetime, lat, lng);
+        // let moonrise = SunCalc.getMoonPosition(moonTimes.rise, lat, lng);
+        // let moonset = SunCalc.getMoonPosition(moonTimes.set, lat, lng);
 
-        let moon_rise_coords = getCartesian(moonrise.azimuth, moonrise.altitude);
-        let moon_set_coords = getCartesian(moonset.azimuth, moonset.altitude);
+        // let moon_rise_coords = getCartesian(moonrise.azimuth, moonrise.altitude);
+        // let moon_set_coords = getCartesian(moonset.azimuth, moonset.altitude);
 
-        const f = new BABYLON.Vector3(moon_now_coords.x, moon_now_coords.y, moon_now_coords.z);
-        const s = new BABYLON.Vector3(moon_rise_coords.x, moon_rise_coords.y, moon_rise_coords.z);
-        const t = new BABYLON.Vector3(moon_set_coords.x, moon_set_coords.y, moon_set_coords.z);
-        const arc = BABYLON.Curve3.ArcThru3Points(f, s, t, 32, false, true);
-        const arcLine = BABYLON.MeshBuilder.CreateLines("arc", {points: arc.getPoints()})
+        const moonPositions = calculateMoonPositionsInADay(datetime, lat, lng);
+        const arc = BABYLON.Curve3.CreateCatmullRomSpline(moonPositions, 100, true);
+        const arcLine = BABYLON.Mesh.CreateLines("catmullRom", arc.getPoints(), scene);
 
         // animation
         let frameRate = 10;
-        // let keyFrames = calculateKeyFrames(datetime, lat, lng);
-        // console.log(keyFrames);
-        let keyFrames = {
-            x: [{frame:0,value:moon_rise_coords.x}, {frame:10,value:moon_now_coords.x},{frame:20,value:moon_set_coords.x},{frame:30,value:moon_rise_coords.x}],
-            y: [{frame:0,value:moon_rise_coords.y}, {frame:10,value:moon_now_coords.y},{frame:20,value:moon_set_coords.y},{frame:30,value:moon_rise_coords.y}],
-            z: [{frame:0,value:moon_rise_coords.z}, {frame:10,value:moon_now_coords.z},{frame:20,value:moon_set_coords.z},{frame:30,value:moon_rise_coords.z}]
-        };
+        let moonKeyFrames = calculateMoonKeyFrames(moonPositions);
+        let sunPositions = calculateSunPositionsInADay(datetime, lat, lng);
+        let sunKeyFrames = calculateSunKeyFrames(sunPositions);
 
         let xSlide = new BABYLON.Animation("xSlide", "position.x", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
         let ySlide = new BABYLON.Animation("ySlide", "position.y", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
         let zSlide = new BABYLON.Animation("zSlide", "position.z", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+        let sunAz = new BABYLON.Animation("sunAz", "material.azimuth", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+        let sunAl = new BABYLON.Animation("sunAl", "material.inclination", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
 
-        xSlide.setKeys(keyFrames.x);
-        ySlide.setKeys(keyFrames.y);
-        zSlide.setKeys(keyFrames.z);
+        xSlide.setKeys(moonKeyFrames.x);
+        ySlide.setKeys(moonKeyFrames.y);
+        zSlide.setKeys(moonKeyFrames.z);
+        sunAz.setKeys(sunKeyFrames.az);
+        sunAl.setKeys(sunKeyFrames.al);
 
         sphere.animations.push(xSlide);
         sphere.animations.push(ySlide);
         sphere.animations.push(zSlide);
 
-        scene.beginAnimation(sphere, 0, 30, true, 0.25);
+        scene.beginAnimation(sphere, 0, 24*frameRate, true, 1);
+        scene.beginDirectAnimation(skybox, [sunAz], 0, 24*frameRate, true, 1);
+        scene.beginDirectAnimation(skybox, [sunAl], 0, 24*frameRate, true, 1);
 
         // north pointer - temp
         let sphere_north = new BABYLON.MeshBuilder.CreateSphere("sphere_north", {diameter: 5});
@@ -116,7 +131,6 @@ window.addEventListener('DOMContentLoaded', function () {
         instTxt.fontSize = 20;
         instPanel.addControl(instTxt);
               
-			
         //Input BABYLON.GUI
         const inputPanel = new BABYLON.GUI.StackPanel();
         inputPanel.width = "220px";
@@ -186,7 +200,6 @@ window.addEventListener('DOMContentLoaded', function () {
             //Add data fetch call here
         });
 
-
         const displayPanel = new BABYLON.GUI.StackPanel();
         displayPanel.width = "420px";
         displayPanel.height = "200px";
@@ -244,4 +257,82 @@ function getCartesian(azimuth, altitude) {
     z = p*Math.cos(altitude)*Math.cos(azimuth);
 
     return {x, y, z};
+}
+
+function calculateSunPositionsInADay(datetime, lat, lng) {
+    let start_datetime = new Date(datetime.getMilliseconds() - 12*60*60*1000);
+    let positions = {az:[], al:[]};
+
+    for(let i=0; i<24; i++) {
+        datetime_i = new Date(start_datetime.getMilliseconds() + (i*60*60*1000));
+        let position = SunCalc.getPosition(datetime_i, lat, lng);
+        let az = toAzimuthInterval(toDegrees(position.azimuth));
+        let al = toAltitudeInterval(toDegrees(position.altitude));
+        positions.az.push(az);
+        positions.al.push(al);
+    }
+    positions.az.push(positions.az[0]);
+    positions.al.push(positions.al[0]);
+    console.log(positions);
+    return positions;
+}
+
+function calculateSunKeyFrames(positions) {
+    let framerate = 10;
+    let keyFrames = {az:[],al:[]};
+    
+    for(let i=0; i<24; i++) {
+        keyFrames.az.push({frame:i*framerate, value:positions.az[i]});
+        keyFrames.al.push({frame:i*framerate, value:positions.al[i]});
+    }
+    keyFrames.az.push({frame:24*framerate, value:positions.az[0]});
+    keyFrames.al.push({frame:24*framerate, value:positions.al[0]});
+    return keyFrames;
+}
+
+function calculateMoonPositionsInADay(datetime, lat, lng) {
+    let start_datetime = new Date(datetime.getMilliseconds() - 12*60*60*1000);
+    let positions = [];
+
+    for(let i=0; i<24; i++) {
+        datetime_i = new Date(start_datetime.getMilliseconds() + (i*60*60*1000));
+        let position = SunCalc.getMoonPosition(datetime_i, lat, lng);
+        let position_coords = getCartesian(position.azimuth, position.altitude);
+        positions.push(new BABYLON.Vector3(position_coords.x, position_coords.y, position_coords.z));
+    }
+    return positions;
+}
+
+function calculateMoonKeyFrames(positions) {
+    let framerate = 10;
+    let keyFrames = {x:[],y:[],z:[]};
+    
+    for(let i=0; i<24; i++) {
+        keyFrames.x.push({frame:i*framerate, value:positions[i].x});
+        keyFrames.y.push({frame:i*framerate, value:positions[i].y});
+        keyFrames.z.push({frame:i*framerate, value:positions[i].z});
+    }
+    keyFrames.x.push({frame:24*framerate, value:positions[0].x});
+    keyFrames.y.push({frame:24*framerate, value:positions[0].y});
+    keyFrames.z.push({frame:24*framerate, value:positions[0].z});
+    return keyFrames;
+}
+
+function toDegrees(radians) {
+	return radians * 180 / Math.PI;
+}
+
+function toAzimuthInterval(degrees) {
+    if (degrees < 0) {
+        degrees = 360+degrees;
+    }
+    if (degrees>360) {
+        degrees = degrees%360;
+    }
+    return degrees/360
+}
+
+function toAltitudeInterval(degrees){
+    let interval = toAzimuthInterval(degrees);
+    return -0.5+interval;
 }
