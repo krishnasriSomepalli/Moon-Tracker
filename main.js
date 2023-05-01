@@ -1,4 +1,16 @@
-var SunCalc = require('suncalc');
+// Default to the datetime now
+// datetime = Date.now();
+datetime = new Date("2023-04-30T22:15:00");
+
+// Default to Austin
+lat = 30.267153; 
+lng = -97.7430608;
+// navigator.geolocation.getCurrentPosition((position) => {
+//     lat = position.coords.latitude;
+//     lng = position.coords.longitude;
+// });
+
+frameRate = 10
 
 //We are using city, country, post/zipcode and time to get the position of the moon
 //geoapifyAPI is being used to get geo code (longitude and latitude) based on above 
@@ -32,7 +44,6 @@ async function getMoonParameters(timeAndDate,latitude,longitude){
     return [x,y,z]  
 }
 
-
 // async function getLocationVectors(){
 //         // Get geocode based on city, country and postcode
 //         const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
@@ -44,21 +55,68 @@ async function getMoonCanvas(){
     var engine = new BABYLON.Engine(canvas, true);
     var createScene = async function () {
         var scene = new BABYLON.Scene(engine);
-        var camera = new BABYLON.ArcRotateCamera("Camera", -Math.PI / 2,  Math.PI / 2, 5, BABYLON.Vector3.Zero(), scene);
+        var camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0,35,0), scene);
         camera.attachControl(canvas, true);
+        camera.minZ = 0.45;
         
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
+        light.specular = new BABYLON.Color3(0.2,0.2,0.2);
+        light.intensity = 0.8;
 
-        // Skybox
-        var skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:300.0}, scene);
-        var skyboxMaterial = new BABYLON.StandardMaterial("country", scene);
-        skyboxMaterial.backFaceCulling = false;
-        skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/country", scene);
-        skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-        skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
-        skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
-        skyboxMaterial.alpha = 0.90;
-        skybox.material = skyboxMaterial;
+        //skymaterial
+        var skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
+        skyMaterial.backFaceCulling = false;
+        
+        // skybox
+        var skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
+        skybox.material = skyMaterial;
+        skybox.material.inclination = 0.25;
+        skybox.material.azimuth = 0;
+
+        // let skybox_stars = BABYLON.MeshBuilder.CreateBox("skyBoxStars", {size:700.0}, scene);
+        // var starsMaterial = new BABYLON.StandardMaterial("stars", scene);
+        // skybox_stars.backFaceCulling = false;
+        // starsMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/stars", scene);
+        // starsMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+        // starsMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        // starsMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+        // skybox_stars.material = starsMaterial;
+
+        // ground
+        const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", "textures/heightMap3.png", {width:1000, height:1000, subdivisions:100, maxHeight: 50});
+        
+        let groundMaterial = new BABYLON.StandardMaterial("ground", scene);
+        groundMaterial.diffuseTexture = new BABYLON.Texture("textures/ground.jpg", scene);
+        groundMaterial.diffuseTexture.uScale = 6;
+        groundMaterial.diffuseTexture.vScale = 6;
+        groundMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+        ground.position.y = -2.05;
+        ground.material = groundMaterial;
+
+        // moon
+        let moon = new BABYLON.MeshBuilder.CreateSphere("moon", {diameter: 5});
+        let moon_mat = new BABYLON.StandardMaterial("mat0", scene);
+        moon_mat.diffuseTexture = new BABYLON.Texture("./textures/moon.png", scene);
+        moon_mat.emissiveColor = new BABYLON.Color3(0.8,0.8,0.8);
+        moon.material = moon_mat;
+
+        // moon position
+        let moonPos = SunCalc.getMoonPosition(datetime, lat, lng);
+        let moon_now_coords = getCartesian(moonPos.azimuth, moonPos.altitude);
+        moon.position = new BABYLON.Vector3(moon_now_coords.x,moon_now_coords.y,moon_now_coords.z);
+
+        const moonPositions = calculateMoonPositionsInADay(datetime, lat, lng);
+        const arc = BABYLON.Curve3.CreateCatmullRomSpline(moonPositions, 100, true);
+        const arcLine = BABYLON.Mesh.CreateLines("catmullRom", arc.getPoints(), scene);
+
+        // moon animations
+        const moonKeyFrames = calculateMoonKeyFrames(moonPositions);
+        setupMoonAnimation(scene, moon, moonKeyFrames);
+
+        // sky animation
+        const sunPositions = calculateSunPositionsInADay(datetime, lat, lng);
+        const sunKeyFrames = calculateSunKeyFrames(sunPositions);
+        setupSkyAnimation(scene, skybox, sunKeyFrames)
 
         var sphere = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
         const mat = new BABYLON.StandardMaterial("myMaterial", scene);
@@ -322,3 +380,118 @@ else {
      canvas.innerHTML = "Geolocation is not supported by this browser.";
   }
 });
+
+function setupMoonAnimation(scene, moon, moonKeyFrames) {
+    let xSlide = new BABYLON.Animation("xSlide", "position.x", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let ySlide = new BABYLON.Animation("ySlide", "position.y", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let zSlide = new BABYLON.Animation("zSlide", "position.z", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+
+    xSlide.setKeys(moonKeyFrames.x);
+    ySlide.setKeys(moonKeyFrames.y);
+    zSlide.setKeys(moonKeyFrames.z);
+
+    moon.animations.push(xSlide);
+    moon.animations.push(ySlide);
+    moon.animations.push(zSlide);
+
+    scene.beginAnimation(moon, 0, 24*frameRate, true, 1);
+}
+
+function setupSkyAnimation(scene, skybox, sunKeyFrames) {
+    let sunAz = new BABYLON.Animation("sunAz", "material.azimuth", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    let sunAl = new BABYLON.Animation("sunAl", "material.inclination", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+
+    sunAz.setKeys(sunKeyFrames.az);
+    sunAl.setKeys(sunKeyFrames.al);
+
+    scene.beginDirectAnimation(skybox, [sunAz], 0, 24*frameRate, true, 1);
+    scene.beginDirectAnimation(skybox, [sunAl], 0, 24*frameRate, true, 1);
+}
+
+function calculateSunPositionsInADay(datetime, lat, lng) {
+    let start_datetime = new Date(datetime.getMilliseconds() - 12*60*60*1000);
+    let positions = {az:[], al:[]};
+
+    for(let i=0; i<24; i++) {
+        datetime_i = new Date(start_datetime.getMilliseconds() + (i*60*60*1000));
+        let position = SunCalc.getPosition(datetime_i, lat, lng);
+        let az = toAzimuthInterval(toDegrees(position.azimuth));
+        let al = toAltitudeInterval(toDegrees(position.altitude));
+        positions.az.push(az);
+        positions.al.push(al);
+    }
+    positions.az.push(positions.az[0]);
+    positions.al.push(positions.al[0]);
+    console.log(positions);
+    return positions;
+}
+
+function calculateSunKeyFrames(positions) {
+    let keyFrames = {az:[],al:[]};
+    
+    for(let i=0; i<24; i++) {
+        keyFrames.az.push({frame:i*frameRate, value:positions.az[i]});
+        keyFrames.al.push({frame:i*frameRate, value:positions.al[i]});
+    }
+    keyFrames.az.push({frame:24*frameRate, value:positions.az[0]});
+    keyFrames.al.push({frame:24*frameRate, value:positions.al[0]});
+    return keyFrames;
+}
+
+function calculateMoonPositionsInADay(datetime, lat, lng) {
+    let start_datetime = new Date(datetime.getMilliseconds() - 12*60*60*1000);
+    let positions = [];
+
+    for(let i=0; i<24; i++) {
+        datetime_i = new Date(start_datetime.getMilliseconds() + (i*60*60*1000));
+        let position = SunCalc.getMoonPosition(datetime_i, lat, lng);
+        let position_coords = getCartesian(position.azimuth, position.altitude);
+        positions.push(new BABYLON.Vector3(position_coords.x, position_coords.y, position_coords.z));
+    }
+    return positions;
+}
+
+function calculateMoonKeyFrames(positions) {
+    let keyFrames = {x:[],y:[],z:[]};
+    
+    for(let i=0; i<24; i++) {
+        keyFrames.x.push({frame:i*frameRate, value:positions[i].x});
+        keyFrames.y.push({frame:i*frameRate, value:positions[i].y});
+        keyFrames.z.push({frame:i*frameRate, value:positions[i].z});
+    }
+    keyFrames.x.push({frame:24*frameRate, value:positions[0].x});
+    keyFrames.y.push({frame:24*frameRate, value:positions[0].y});
+    keyFrames.z.push({frame:24*frameRate, value:positions[0].z});
+    return keyFrames;
+}
+
+// accepts azimuth and altitude in radians
+// returns corresponding Cartesian coordinates
+function getCartesian(azimuth, altitude) {
+    p = 100;
+
+    x = p*Math.cos(altitude)*Math.sin(azimuth);
+    y = p*Math.sin(altitude);
+    z = p*Math.cos(altitude)*Math.cos(azimuth);
+
+    return {x, y, z};
+}
+
+function toDegrees(radians) {
+	return radians * 180 / Math.PI;
+}
+
+function toAzimuthInterval(degrees) {
+    if (degrees < 0) {
+        degrees = 360+degrees;
+    }
+    if (degrees>360) {
+        degrees = degrees%360;
+    }
+    return degrees/360
+}
+
+function toAltitudeInterval(degrees){
+    let interval = toAzimuthInterval(degrees);
+    return -0.5+interval;
+}
