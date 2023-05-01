@@ -37,7 +37,7 @@ async function getMoonCanvas(){
         let camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0,35,0), scene);
         camera.attachControl(canvas, true);
         camera.minZ = 0.45;
-        
+
         // light
         let light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
         light.specular = new BABYLON.Color3(0.2,0.2,0.2);
@@ -54,18 +54,18 @@ async function getMoonCanvas(){
         skybox.material.azimuth = 0;
 
         // stars
-        // let starsMaterial = new BABYLON.StandardMaterial("stars", scene);
-        // starsMaterial.backFaceCulling = false;
-        // starsMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/stars", scene); // update to black dots on white bg
-        // starsMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-        // starsMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
-        // starsMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
-        // starsMaterial.alpha = 0.1;
-        // starsMaterial.alphaMode = BABYLON.Engine.ALPHA_MAXIMIZED;
+        let starsMaterial = new BABYLON.StandardMaterial("stars", scene);
+        starsMaterial.backFaceCulling = false;
+        starsMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/stars", scene); // update to black dots on white bg
+        starsMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+        starsMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        starsMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+        starsMaterial.alpha = 0.3;
+        starsMaterial.alphaMode = BABYLON.Engine.ALPHA_ADD;
 
         // skybox - stars
-        // let starsbox = BABYLON.Mesh.CreateBox("skyBox", 800.0, scene);
-        // starsbox.material = starsMaterial;
+        let starsbox = BABYLON.Mesh.CreateBox("skyBox", 900.0, scene);
+        starsbox.material = starsMaterial;
 
         // ground
         let ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", "textures/heightMap3.png", {width:1000, height:1000, subdivisions:100, maxHeight: 50});
@@ -79,6 +79,8 @@ async function getMoonCanvas(){
         ground.material = groundMaterial;
 
         let { moon, arcLine } = draw(scene, skybox, datetimeGlobal, latitudeGlobal, longitudeGlobal);
+        camera.lockedTarget = moon;
+        camera.radius = 200;
 
         // setup title and input controls
         let advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
@@ -91,7 +93,7 @@ async function getMoonCanvas(){
         titlePanel.addControl(title);
 
         // inputs
-        let inputPanel = createPanel("220px", "440px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
+        let inputPanel = createPanel("220px", "350px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
         advancedTexture.addControl(inputPanel);
 
         // city input
@@ -161,16 +163,28 @@ async function getMoonCanvas(){
             [longitudeGlobal, latitudeGlobal] = await geocodeAddress(cityGlobal, countryGlobal, postcodeGlobal)
   
             scene.stopAllAnimations();
+            camera.lockedTarget = null;
             moon.dispose();
             arcLine.dispose();
-            draw(scene, skybox, datetimeGlobal, latitudeGlobal, longitudeGlobal);
+            let meshes = draw(scene, skybox, datetimeGlobal, latitudeGlobal, longitudeGlobal);
+            moon = meshes.moon;
+            arcLine = meshes.arcLine;
+            camera.lockedTarget = moon;
         });
 
-        let displayPanel = createPanel("420px", "200px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
-        advancedTexture.addControl(displayPanel);
+        const NS = [
+            new BABYLON.Vector3(0,200,3000),
+            new BABYLON.Vector3(0,200,-3000)
+        ]
+        const NSAxis = BABYLON.MeshBuilder.CreateDashedLines("lines", {points: NS});
+        NSAxis.color = new BABYLON.Color3(0,0,0);
 
-        let displayAnimationTime = createTextBlock("Moon location time display");
-        displayPanel.addControl(displayAnimationTime);
+        const EW = [
+            new BABYLON.Vector3(-3000,200,0),
+            new BABYLON.Vector3(3000,200,0)
+        ]
+        const EWAxis = BABYLON.MeshBuilder.CreateDashedLines("lines", {points: EW});
+        EWAxis.color = new BABYLON.Color3(0,0,0);
                 
         return scene;
     }
@@ -220,7 +234,7 @@ window.addEventListener('DOMContentLoaded', async function () {
 // Animates sun position in the sky
 function draw(scene, skybox, datetime, lat, lng) {
     // moon
-    let moon = new BABYLON.MeshBuilder.CreateSphere("moon", {diameter: 5});
+    let moon = new BABYLON.MeshBuilder.CreateSphere("moon", {diameter: 25});
     let moon_mat = new BABYLON.StandardMaterial("mat0", scene);
     moon_mat.diffuseTexture = new BABYLON.Texture("./textures/moon.png", scene);
     moon_mat.emissiveColor = new BABYLON.Color3(0.8,0.8,0.8);
@@ -229,7 +243,8 @@ function draw(scene, skybox, datetime, lat, lng) {
     // moon path
     const moonPositions = calculateMoonPositionsInADay(datetime, lat, lng);
     const arc = BABYLON.Curve3.CreateCatmullRomSpline(moonPositions, 100, true);
-    const arcLine = BABYLON.Mesh.CreateLines("catmullRom", arc.getPoints(), scene);
+    const arcLine = BABYLON.Mesh.CreateLines("catmullRom", arc.getPoints());
+    arcLine.alpha = 0.5;
 
     // moon animations
     const moonKeyFrames = calculateMoonKeyFrames(moonPositions);
@@ -256,7 +271,7 @@ function setupMoonAnimation(scene, moon, moonKeyFrames) {
     moon.animations.push(ySlide);
     moon.animations.push(zSlide);
 
-    scene.beginAnimation(moon, 0, 24*FRAMERATE, true, 1);
+    scene.beginAnimation(moon, 0, 24*FRAMERATE, true, 1.5);
 }
 
 function setupSkyAnimation(scene, skybox, sunKeyFrames) {
@@ -266,8 +281,8 @@ function setupSkyAnimation(scene, skybox, sunKeyFrames) {
     sunAz.setKeys(sunKeyFrames.az);
     sunAl.setKeys(sunKeyFrames.al);
 
-    scene.beginDirectAnimation(skybox, [sunAz], 0, 24*FRAMERATE, true, 1);
-    scene.beginDirectAnimation(skybox, [sunAl], 0, 24*FRAMERATE, true, 1);
+    scene.beginDirectAnimation(skybox, [sunAz], 0, 23*FRAMERATE, true, 1);
+    scene.beginDirectAnimation(skybox, [sunAl], 0, 23*FRAMERATE, true, 1);
 }
 
 function calculateSunPositionsInADay(datetime, lat, lng) {
@@ -282,9 +297,6 @@ function calculateSunPositionsInADay(datetime, lat, lng) {
         positions.az.push(az);
         positions.al.push(al);
     }
-    positions.az.push(positions.az[0]);
-    positions.al.push(positions.al[0]);
-
     return positions;
 }
 
@@ -368,7 +380,7 @@ function createInputText(text) {
 // accepts azimuth and altitude in radians
 // returns corresponding Cartesian coordinates
 function getCartesian(azimuth, altitude) {
-    const p = 100;
+    const p = 500;
 
     let x = p*Math.cos(altitude)*Math.sin(azimuth);
     let y = p*Math.sin(altitude);
