@@ -2,15 +2,19 @@ FRAMERATE = 10
 
 // Default to the datetime now
 // datetime = Date.now();
-datetime = new Date("2023-04-30T22:15:00");
+datetimeGlobal = new Date("2023-04-30T22:15:00");
 
 // Default to Austin
-lat = 30.267153; 
-lng = -97.7430608;
+latitudeGlobal = 30.267153; 
+longitudeGlobal = -97.7430608;
 // navigator.geolocation.getCurrentPosition((position) => {
-//     lat = position.coords.latitude;
-//     lng = position.coords.longitude;
+//     latitudeGlobal = position.coords.latitude;
+//     longitudeGlobal = position.coords.longitude;
 // });
+
+let cityGlobal = 'Austin';
+let countryGlobal = 'United States';
+let postcodeGlobal = 78705;
 
 //We are using city, country, post/zipcode and time to get the position of the moon
 //geoapifyAPI is being used to get geo code (longitude and latitude) based on above 
@@ -54,24 +58,24 @@ async function getMoonCanvas(){
     var canvas = document.getElementById('canvas');
     var engine = new BABYLON.Engine(canvas, true);
     var createScene = async function () {
-        var scene = new BABYLON.Scene(engine);
+        let scene = new BABYLON.Scene(engine);
 
         // camera
-        var camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0,35,0), scene);
+        let camera = new BABYLON.FreeCamera("FreeCamera", new BABYLON.Vector3(0,35,0), scene);
         camera.attachControl(canvas, true);
         camera.minZ = 0.45;
         
         // light
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
+        let light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
         light.specular = new BABYLON.Color3(0.2,0.2,0.2);
         light.intensity = 0.8;
 
         // skymaterial
-        var skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
+        let skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
         skyMaterial.backFaceCulling = false;
         
         // skybox - sky
-        var skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
+        let skybox = BABYLON.Mesh.CreateBox("skyBox", 1000.0, scene);
         skybox.material = skyMaterial;
         skybox.material.inclination = 0.25;
         skybox.material.azimuth = 0;
@@ -91,7 +95,7 @@ async function getMoonCanvas(){
         // starsbox.material = starsMaterial;
 
         // ground
-        const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", "textures/heightMap3.png", {width:1000, height:1000, subdivisions:100, maxHeight: 50});
+        let ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("gdhm", "textures/heightMap3.png", {width:1000, height:1000, subdivisions:100, maxHeight: 50});
         
         let groundMaterial = new BABYLON.StandardMaterial("ground", scene);
         groundMaterial.diffuseTexture = new BABYLON.Texture("textures/ground.jpg", scene);
@@ -101,30 +105,7 @@ async function getMoonCanvas(){
         ground.position.y = -2.05;
         ground.material = groundMaterial;
 
-        // moon
-        let moon = new BABYLON.MeshBuilder.CreateSphere("moon", {diameter: 5});
-        let moon_mat = new BABYLON.StandardMaterial("mat0", scene);
-        moon_mat.diffuseTexture = new BABYLON.Texture("./textures/moon.png", scene);
-        moon_mat.emissiveColor = new BABYLON.Color3(0.8,0.8,0.8);
-        moon.material = moon_mat;
-
-        // moon position
-        let moonPos = SunCalc.getMoonPosition(datetime, lat, lng);
-        let moon_now_coords = getCartesian(moonPos.azimuth, moonPos.altitude);
-        moon.position = new BABYLON.Vector3(moon_now_coords.x,moon_now_coords.y,moon_now_coords.z);
-
-        const moonPositions = calculateMoonPositionsInADay(datetime, lat, lng);
-        const arc = BABYLON.Curve3.CreateCatmullRomSpline(moonPositions, 100, true);
-        const arcLine = BABYLON.Mesh.CreateLines("catmullRom", arc.getPoints(), scene);
-
-        // moon animations
-        const moonKeyFrames = calculateMoonKeyFrames(moonPositions);
-        setupMoonAnimation(scene, moon, moonKeyFrames);
-
-        // sky animation
-        const sunPositions = calculateSunPositionsInADay(datetime, lat, lng);
-        const sunKeyFrames = calculateSunKeyFrames(sunPositions);
-        setupSkyAnimation(scene, skybox, sunKeyFrames)
+        let { moon, arcLine } = draw(scene, skybox, datetimeGlobal, latitudeGlobal, longitudeGlobal);
 
         // setup title and input controls
         let advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
@@ -142,38 +123,38 @@ async function getMoonCanvas(){
 
         // city input
         let city = createTextBlock("Enter City");
-        let cityInput = createInputText(citySearchGlobal);    
+        let cityInput = createInputText(cityGlobal);    
         cityInput.onTextChangedObservable.add(e => {
-            citySearchGlobal = cityInput.text
+            cityGlobal = cityInput.text
         });
         inputPanel.addControl(city);
         inputPanel.addControl(cityInput);
 
         // country input
         let country = createTextBlock("Enter Country");
-        let countryInput = createInputText(countrySearchGlobal);     
+        let countryInput = createInputText(countryGlobal);     
         countryInput.onTextChangedObservable.add(e => {
-            countrySearchGlobal = countryInput.text   
+            countryGlobal = countryInput.text   
         });
         inputPanel.addControl(country);	
         inputPanel.addControl(countryInput);
 
         // postcode input
-        let postcode = createTextBlock("Post/Zip Code");
-        let postcodeInput = createInputText(postcodeSearchGlobal);     
+        let postcode = createTextBlock("Postcode");
+        let postcodeInput = createInputText(postcodeGlobal);     
         postcodeInput.onTextChangedObservable.add(e => {
-            postcodeSearchGlobal = postcodeInput.text
+            postcodeGlobal = postcodeInput.text
         });
         inputPanel.addControl(postcode);
         inputPanel.addControl(postcodeInput);
 
         // date input
         let date = createTextBlock("Enter Date");
-        let dateInput = createInputText(getDateString(datetime));    
+        let dateInput = createInputText(getDateString(datetimeGlobal));    
         dateInput.onTextChangedObservable.add(e => {
             let date = Date.parse(dateInput.text);
             if (!isNaN(date)) {
-                datetime = new Date(dateInput.text);
+                datetimeGlobal = new Date(dateInput.text);
             }
         });
         inputPanel.addControl(date);
@@ -181,7 +162,7 @@ async function getMoonCanvas(){
 
         // time input
         let time = createTextBlock("Enter Time");
-        let timeInput = createInputText(getTimeString(datetime));    
+        let timeInput = createInputText(getTimeString(datetimeGlobal));    
         timeInput.onTextChangedObservable.add(e => {
             let timeString = timeInput.text;
             let timeParts = timeString.split(':');
@@ -190,54 +171,36 @@ async function getMoonCanvas(){
             if (!(isNaN(hours) && isNaN(mins) && hours>23 && hours<0 && mins>59 && mins<0)){
                 let date = new Date(dateInput.text) || Date.now();
                 date.setHours(hours, mins);
-                datetime = date;
+                datetimeGlobal = date;
             }
         });
         inputPanel.addControl(time);
-        inputPanel.addControl(timeInput);
+        inputPanel.addControl(timeInput);          
 
-        var sphere = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
-        const mat = new BABYLON.StandardMaterial("myMaterial", scene);
-        mat.diffuseColor = new BABYLON.Color3(1, 1, 0);
-        mat.alpha = 1;
-        sphere.material = mat;
-        
-        // Get geocode based on city, country and postcode
-        const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
-        // Get moon position parameters based on longitude and 
-        const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
-        sphere.position = new BABYLON.Vector3(x,y,z)
-
-        var moon_stationary = new BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 5});
-        const mat2 = new BABYLON.StandardMaterial("myMaterial", scene);
-        mat2.diffuseColor = new BABYLON.Color3(1, 1, 1);
-        mat2.alpha = 1;
-        moon_stationary.material = mat2;            
-
-        // Show Path Button
-        var playBtn = BABYLON.GUI.Button.CreateSimpleButton("but", "Show path");
-        playBtn.width = 0.5;
+        // button
+        var playBtn = BABYLON.GUI.Button.CreateSimpleButton("button", "Apply Parameters");
+        playBtn.width = 0.7;
         playBtn.height = "50px";
         playBtn.paddingTop = "20px";
         playBtn.color = "white";
         inputPanel.addControl(playBtn);
-        playBtn.onPointerClickObservable.add(async function (value) {
-            console.log("cityName")
-            console.log(value);
-            const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
-            // Get moon position parameters based on longitude and 
-            const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
-            sphere.position = new BABYLON.Vector3(x,y,z)
+        playBtn.onPointerClickObservable.add(async function () {
+            // const [longitude, latitude] = await geocodeAddress(citySearchGlobal, countrySearchGlobal, postcodeSearchGlobal)
+            // // Get moon position parameters based on longitude and 
+            // const [x,y,z] = await getMoonParameters(timeAndDateSearchGlobal, latitude, longitude)
+            // sphere.position = new BABYLON.Vector3(x,y,z)
+            
+            scene.stopAllAnimations();
+            moon.dispose();
+            arcLine.dispose();
+            draw(scene, skybox, datetimeGlobal, latitudeGlobal, longitudeGlobal);
         });
-
 
         let displayPanel = createPanel("420px", "200px", BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT, BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP);
         advancedTexture.addControl(displayPanel);
 
         let displayAnimationTime = createTextBlock("Moon location time display");
         displayPanel.addControl(displayAnimationTime);
-
-        moon_stationary.position=new BABYLON.Vector3(25,25,0);
                 
         return scene;
     }
@@ -266,21 +229,46 @@ async function getLocation_success(position) {
   
 //Executes when user blocks the location access request  
 async function getLocation_error(position) {
- getMoonCanvas()
-  }
+    getMoonCanvas()
+}
 
 window.addEventListener('DOMContentLoaded', async function () {
-  //By default, sets geocoordinates to user's current location
-  //If user denies location access, default to Austin, United States, 78705
-  if (navigator.geolocation) {
-    console.log('Inside navigation')
-    await navigator.geolocation.getCurrentPosition(getLocation_success, getLocation_error);
-  }
-else {
-     var canvas = document.getElementById('canvas');
-     canvas.innerHTML = "Geolocation is not supported by this browser.";
-  }
+    //By default, sets geocoordinates to user's current location
+    //If user denies location access, default to Austin, United States, 78705
+    if (navigator.geolocation) {
+        console.log('Inside navigation')
+        await navigator.geolocation.getCurrentPosition(getLocation_success, getLocation_error);
+    }
+    else {
+        var canvas = document.getElementById('canvas');
+        canvas.innerHTML = "Geolocation is not supported by this browser.";
+    }
 });
+
+function draw(scene, skybox, datetime, lat, lng) {
+    // moon
+    let moon = new BABYLON.MeshBuilder.CreateSphere("moon", {diameter: 5});
+    let moon_mat = new BABYLON.StandardMaterial("mat0", scene);
+    moon_mat.diffuseTexture = new BABYLON.Texture("./textures/moon.png", scene);
+    moon_mat.emissiveColor = new BABYLON.Color3(0.8,0.8,0.8);
+    moon.material = moon_mat;
+
+    // moon path
+    const moonPositions = calculateMoonPositionsInADay(datetime, lat, lng);
+    const arc = BABYLON.Curve3.CreateCatmullRomSpline(moonPositions, 100, true);
+    const arcLine = BABYLON.Mesh.CreateLines("catmullRom", arc.getPoints(), scene);
+
+    // moon animations
+    const moonKeyFrames = calculateMoonKeyFrames(moonPositions);
+    setupMoonAnimation(scene, moon, moonKeyFrames);
+
+    // sky animation
+    const sunPositions = calculateSunPositionsInADay(datetimeGlobal, latitudeGlobal, longitudeGlobal);
+    const sunKeyFrames = calculateSunKeyFrames(sunPositions);
+    setupSkyAnimation(scene, skybox, sunKeyFrames)
+
+    return {moon, arcLine};
+}
 
 function setupMoonAnimation(scene, moon, moonKeyFrames) {
     let xSlide = new BABYLON.Animation("xSlide", "position.x", FRAMERATE, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
@@ -394,7 +382,7 @@ function createTextBlock(text) {
 
 function createInputText(text) {
     let inputText = new BABYLON.GUI.InputText();
-    inputText.width = 0.5;
+    inputText.width = 0.7;
     inputText.height = "30px";
     inputText.paddingTop = "0px";
     inputText.color = "white";
@@ -439,7 +427,7 @@ function toAltitudeInterval(degrees){
 
 function getDateString(datetime) {
     const date = datetime.getUTCDate();
-    const month = datetime.getUTCMonth();
+    const month = datetime.getUTCMonth()+1;
     const year = datetime.getUTCFullYear();
 
     return `${year}-${month}-${date}`;
