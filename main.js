@@ -14,7 +14,7 @@ postcodeGlobal = '78705';
 //We are using city, country, post/zipcode and time to get the position of the moon
 //geoapifyAPI is being used to get geo code (longitude and latitude) based on above 
 //information and reverse geo code (city, country, post/zip code) based on current location'slatitude and longitude.
-let geoapifyAPIKey = process.env.API_KEY;
+let geoapifyAPIKey = '220654fd185f4701a933e938b683da70'
 
 // call Geocoding API - https://www.geoapify.com/geocoding-api/
 async function geocodeAddress(city, country, postcode) {
